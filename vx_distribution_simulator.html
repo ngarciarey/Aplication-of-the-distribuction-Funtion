@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulador de Distribución de Maxwell-Boltzmann (componente de velocidad)</title>
-    <!-- Tailwind CSS para un estilo moderno y responsivo -->
+    <title>Maxwell-Boltzmann Distribution Simulator (Velocity Component)</title>
+    <!-- Tailwind CSS for a modern and responsive style -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Fuente Inter de Google Fonts -->
+    <!-- Inter font from Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -44,64 +44,64 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- Contenedor principal de la aplicación -->
+    <!-- Main application container -->
     <div class="max-w-4xl w-full bg-gray-900 rounded-xl shadow-2xl p-6 md:p-10 border border-gray-700">
         
-        <!-- Título y descripción -->
-        <h1 class="text-3xl md:text-4xl font-bold text-center mb-2 text-white">Simulador de Maxwell-Boltzmann (Componente de Velocidad)</h1>
+        <!-- Title and description -->
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-2 text-white">Maxwell-Boltzmann Distribution Simulator (Velocity Component)</h1>
         <p class="text-center text-gray-400 mb-8">
-            Visualiza cómo la distribución de la componente x de la velocidad de las moléculas cambia con la temperatura y la masa.
+            Visualize how the distribution of the x-component of molecular velocity changes with temperature and mass.
         </p>
 
-        <!-- Controles deslizantes -->
+        <!-- Slider controls -->
         <div class="flex flex-col md:flex-row md:space-x-8 mb-8">
-            <!-- Control de Temperatura -->
+            <!-- Temperature control -->
             <div class="flex-1 mb-6 md:mb-0">
                 <label for="temperature" class="block text-gray-300 font-semibold mb-2">
-                    Temperatura ($$T$$): <span id="tempValue" class="font-normal text-gray-400">300</span> K
+                    Temperature ($$T$$): <span id="tempValue" class="font-normal text-gray-400">300</span> K
                 </label>
                 <input type="range" id="temperature" min="100" max="1000" value="300" 
                        class="w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer">
             </div>
 
-            <!-- Control de Masa Molar -->
+            <!-- Molar Mass control -->
             <div class="flex-1">
                 <label for="mass" class="block text-gray-300 font-semibold mb-2">
-                    Masa Molar ($$M$$): <span id="massValue" class="font-normal text-gray-400">4</span> g/mol
+                    Molar Mass ($$M$$): <span id="massValue" class="font-normal text-gray-400">4</span> g/mol
                 </label>
                 <input type="range" id="mass" min="2" max="50" value="4" step="0.1"
                        class="w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer">
             </div>
         </div>
 
-        <!-- Área del gráfico -->
+        <!-- Graph area -->
         <div class="flex justify-center mb-6">
             <canvas id="distributionCanvas" class="w-full h-auto" width="800" height="400"></canvas>
         </div>
 
-        <!-- Display de valores importantes -->
+        <!-- Important values display -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
             <div class="p-4 bg-gray-800 rounded-lg shadow-inner">
-                <h3 class="text-lg md:text-xl font-semibold text-blue-400">Pico de Distribución</h3>
+                <h3 class="text-lg md:text-xl font-semibold text-blue-400">Distribution Peak</h3>
                 <p id="peakValue" class="text-2xl font-bold text-white mt-1">0.00</p>
                 <p class="text-sm text-gray-400">m/s</p>
             </div>
             <div class="p-4 bg-gray-800 rounded-lg shadow-inner">
-                <h3 class="text-lg md:text-xl font-semibold text-green-400">Desviación Estándar ($$\sigma$$)</h3>
+                <h3 class="text-lg md:text-xl font-semibold text-green-400">Standard Deviation ($$\sigma$$)</h3>
                 <p id="stdDevValue" class="text-2xl font-bold text-white mt-1"></p>
                 <p class="text-sm text-gray-400">m/s</p>
             </div>
         </div>
     </div>
 
-    <!-- Script de JavaScript para la lógica de la aplicación -->
+    <!-- JavaScript script for application logic -->
     <script>
         window.onload = function() {
-            // Constantes físicas
-            const kB = 1.380649e-23; // Constante de Boltzmann en J/K
-            const NA = 6.02214076e23; // Número de Avogadro
+            // Physical constants
+            const kB = 1.380649e-23; // Boltzmann constant in J/K
+            const NA = 6.02214076e23; // Avogadro's number
 
-            // Elementos del DOM
+            // DOM elements
             const canvas = document.getElementById('distributionCanvas');
             const ctx = canvas.getContext('2d');
             const temperatureSlider = document.getElementById('temperature');
@@ -111,11 +111,11 @@
             const peakValueP = document.getElementById('peakValue');
             const stdDevValueP = document.getElementById('stdDevValue');
 
-            // Rangos fijos para los ejes del gráfico
+            // Fixed ranges for graph axes
             const MAX_ABS_VX = 2000;
             const MAX_GVX = 0.0016; 
 
-            // Función de distribución de la componente de velocidad x (Gaussiana)
+            // Velocity x-component distribution function (Gaussian)
             function gaussianVelocityComponent(vx, m_kg, T) {
                 if (T <= 0 || m_kg <= 0) return 0;
                 const term1 = Math.sqrt(m_kg / (2 * Math.PI * kB * T));
@@ -123,27 +123,27 @@
                 return term1 * term2;
             }
 
-            // Dibuja el gráfico en el canvas
+            // Draws the graph on the canvas
             function drawGraph() {
                 const T = parseFloat(temperatureSlider.value);
                 const M_gmol = parseFloat(massSlider.value);
                 const m_kg = (M_gmol / 1000) / NA;
                 
-                // Calcular la desviación estándar
+                // Calculate standard deviation
                 const sigma = Math.sqrt((kB * T) / m_kg);
 
-                // Limpiar el canvas y dibujar el fondo
+                // Clear the canvas and draw the background
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#1e1e1e';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Escalas de los ejes
+                // Axis scales
                 const scaleX = canvas.width / (2 * MAX_ABS_VX);
                 const scaleY = (canvas.height - 30) / MAX_GVX;
                 
-                // Dibujar la curva de distribución
+                // Draw the distribution curve
                 ctx.beginPath();
-                ctx.strokeStyle = '#60a5fa'; // Un azul claro
+                ctx.strokeStyle = '#60a5fa'; // A light blue
                 ctx.lineWidth = 3;
                 for (let vx = -MAX_ABS_VX; vx <= MAX_ABS_VX; vx += 2) { 
                     const g_vx = gaussianVelocityComponent(vx, m_kg, T);
@@ -157,19 +157,19 @@
                 }
                 ctx.stroke();
 
-                // Dibujar los ejes X y Y
+                // Draw X and Y axes
                 ctx.beginPath();
                 ctx.strokeStyle = '#9e9e9e';
                 ctx.lineWidth = 1;
-                // Eje X
+                // X-axis
                 ctx.moveTo(0, canvas.height - 20);
                 ctx.lineTo(canvas.width, canvas.height - 20);
-                // Eje Y
+                // Y-axis
                 ctx.moveTo(canvas.width / 2, canvas.height - 20);
                 ctx.lineTo(canvas.width / 2, 0);
                 ctx.stroke();
 
-                // Dibujar las líneas para la desviación estándar
+                // Draw lines for standard deviation
                 const drawLine = (vx, color, label, textColor) => {
                     // +sigma
                     let x = (vx + MAX_ABS_VX) * scaleX;
@@ -206,19 +206,19 @@
                     }
                 };
                 
-                // Dibujar los marcadores
+                // Draw markers
                 drawLine(sigma, '#22c55e', `$$\sigma$$`, '#22c55e');
 
-                // Dibujar etiquetas de los ejes
+                // Draw axis labels
                 ctx.fillStyle = '#9e9e9e';
                 ctx.font = '14px Inter, sans-serif';
                 ctx.textAlign = 'right';
                 ctx.fillText(`$$g(v_x)$$`, canvas.width / 2 - 5, 15);
                 ctx.textAlign = 'center';
-                ctx.fillText(`Componente de velocidad ($$v_x$$) m/s`, canvas.width / 2, canvas.height - 5);
+                ctx.fillText(`Velocity Component ($$v_x$$) m/s`, canvas.width / 2, canvas.height - 5);
             }
 
-            // Esta función se encarga de actualizar tanto los valores como el gráfico
+            // This function updates both the values and the graph
             function update() {
                 const T = parseFloat(temperatureSlider.value);
                 const M_gmol = parseFloat(massSlider.value);
@@ -234,11 +234,11 @@
                 drawGraph();
             }
 
-            // Añadir los escuchadores de eventos para que se actualice al mover los sliders
+            // Add event listeners to update on slider movement
             temperatureSlider.addEventListener('input', update);
             massSlider.addEventListener('input', update);
 
-            // Llamar a la función de inicialización al cargar la página
+            // Call the initialization function on page load
             update();
         };
     </script>
