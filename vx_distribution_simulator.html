@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Distribución de Maxwell-Boltzmann (componente de velocidad)</title>
+    <!-- Tailwind CSS para un estilo moderno y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente Inter de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        canvas {
+            background-color: #1e1e1e;
+            border: 2px solid #333;
+            border-radius: 12px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #2563eb;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #2563eb;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Contenedor principal de la aplicación -->
+    <div class="max-w-4xl w-full bg-gray-900 rounded-xl shadow-2xl p-6 md:p-10 border border-gray-700">
+        
+        <!-- Título y descripción -->
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-2 text-white">Simulador de Maxwell-Boltzmann (Componente de Velocidad)</h1>
+        <p class="text-center text-gray-400 mb-8">
+            Visualiza cómo la distribución de la componente x de la velocidad de las moléculas cambia con la temperatura y la masa.
+        </p>
+
+        <!-- Controles deslizantes -->
+        <div class="flex flex-col md:flex-row md:space-x-8 mb-8">
+            <!-- Control de Temperatura -->
+            <div class="flex-1 mb-6 md:mb-0">
+                <label for="temperature" class="block text-gray-300 font-semibold mb-2">
+                    Temperatura ($$T$$): <span id="tempValue" class="font-normal text-gray-400">300</span> K
+                </label>
+                <input type="range" id="temperature" min="100" max="1000" value="300" 
+                       class="w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer">
+            </div>
+
+            <!-- Control de Masa Molar -->
+            <div class="flex-1">
+                <label for="mass" class="block text-gray-300 font-semibold mb-2">
+                    Masa Molar ($$M$$): <span id="massValue" class="font-normal text-gray-400">4</span> g/mol
+                </label>
+                <input type="range" id="mass" min="2" max="50" value="4" step="0.1"
+                       class="w-full h-2 bg-gray-700 rounded-full appearance-none cursor-pointer">
+            </div>
+        </div>
+
+        <!-- Área del gráfico -->
+        <div class="flex justify-center mb-6">
+            <canvas id="distributionCanvas" class="w-full h-auto" width="800" height="400"></canvas>
+        </div>
+
+        <!-- Display de valores importantes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+            <div class="p-4 bg-gray-800 rounded-lg shadow-inner">
+                <h3 class="text-lg md:text-xl font-semibold text-blue-400">Pico de Distribución</h3>
+                <p id="peakValue" class="text-2xl font-bold text-white mt-1">0.00</p>
+                <p class="text-sm text-gray-400">m/s</p>
+            </div>
+            <div class="p-4 bg-gray-800 rounded-lg shadow-inner">
+                <h3 class="text-lg md:text-xl font-semibold text-green-400">Desviación Estándar ($$\sigma$$)</h3>
+                <p id="stdDevValue" class="text-2xl font-bold text-white mt-1"></p>
+                <p class="text-sm text-gray-400">m/s</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de JavaScript para la lógica de la aplicación -->
+    <script>
+        window.onload = function() {
+            // Constantes físicas
+            const kB = 1.380649e-23; // Constante de Boltzmann en J/K
+            const NA = 6.02214076e23; // Número de Avogadro
+
+            // Elementos del DOM
+            const canvas = document.getElementById('distributionCanvas');
+            const ctx = canvas.getContext('2d');
+            const temperatureSlider = document.getElementById('temperature');
+            const massSlider = document.getElementById('mass');
+            const tempValueSpan = document.getElementById('tempValue');
+            const massValueSpan = document.getElementById('massValue');
+            const peakValueP = document.getElementById('peakValue');
+            const stdDevValueP = document.getElementById('stdDevValue');
+
+            // Rangos fijos para los ejes del gráfico
+            const MAX_ABS_VX = 2000;
+            const MAX_GVX = 0.0016; 
+
+            // Función de distribución de la componente de velocidad x (Gaussiana)
+            function gaussianVelocityComponent(vx, m_kg, T) {
+                if (T <= 0 || m_kg <= 0) return 0;
+                const term1 = Math.sqrt(m_kg / (2 * Math.PI * kB * T));
+                const term2 = Math.exp(-m_kg * Math.pow(vx, 2) / (2 * kB * T));
+                return term1 * term2;
+            }
+
+            // Dibuja el gráfico en el canvas
+            function drawGraph() {
+                const T = parseFloat(temperatureSlider.value);
+                const M_gmol = parseFloat(massSlider.value);
+                const m_kg = (M_gmol / 1000) / NA;
+                
+                // Calcular la desviación estándar
+                const sigma = Math.sqrt((kB * T) / m_kg);
+
+                // Limpiar el canvas y dibujar el fondo
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#1e1e1e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Escalas de los ejes
+                const scaleX = canvas.width / (2 * MAX_ABS_VX);
+                const scaleY = (canvas.height - 30) / MAX_GVX;
+                
+                // Dibujar la curva de distribución
+                ctx.beginPath();
+                ctx.strokeStyle = '#60a5fa'; // Un azul claro
+                ctx.lineWidth = 3;
+                for (let vx = -MAX_ABS_VX; vx <= MAX_ABS_VX; vx += 2) { 
+                    const g_vx = gaussianVelocityComponent(vx, m_kg, T);
+                    const x = (vx + MAX_ABS_VX) * scaleX;
+                    const y = canvas.height - 20 - (g_vx * scaleY);
+                    if (vx === -MAX_ABS_VX) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+                // Dibujar los ejes X y Y
+                ctx.beginPath();
+                ctx.strokeStyle = '#9e9e9e';
+                ctx.lineWidth = 1;
+                // Eje X
+                ctx.moveTo(0, canvas.height - 20);
+                ctx.lineTo(canvas.width, canvas.height - 20);
+                // Eje Y
+                ctx.moveTo(canvas.width / 2, canvas.height - 20);
+                ctx.lineTo(canvas.width / 2, 0);
+                ctx.stroke();
+
+                // Dibujar las líneas para la desviación estándar
+                const drawLine = (vx, color, label, textColor) => {
+                    // +sigma
+                    let x = (vx + MAX_ABS_VX) * scaleX;
+                    if (x < canvas.width) {
+                        ctx.setLineDash([5, 5]);
+                        ctx.beginPath();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(x, canvas.height - 20); 
+                        ctx.lineTo(x, 0);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = textColor;
+                        ctx.font = '14px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(label, x, canvas.height - 10);
+                    }
+
+                    // -sigma
+                    x = (-vx + MAX_ABS_VX) * scaleX;
+                    if (x > 0) {
+                        ctx.setLineDash([5, 5]);
+                        ctx.beginPath();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(x, canvas.height - 20); 
+                        ctx.lineTo(x, 0);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = textColor;
+                        ctx.font = '14px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`-` + label, x, canvas.height - 10);
+                    }
+                };
+                
+                // Dibujar los marcadores
+                drawLine(sigma, '#22c55e', `$$\sigma$$`, '#22c55e');
+
+                // Dibujar etiquetas de los ejes
+                ctx.fillStyle = '#9e9e9e';
+                ctx.font = '14px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`$$g(v_x)$$`, canvas.width / 2 - 5, 15);
+                ctx.textAlign = 'center';
+                ctx.fillText(`Componente de velocidad ($$v_x$$) m/s`, canvas.width / 2, canvas.height - 5);
+            }
+
+            // Esta función se encarga de actualizar tanto los valores como el gráfico
+            function update() {
+                const T = parseFloat(temperatureSlider.value);
+                const M_gmol = parseFloat(massSlider.value);
+                
+                tempValueSpan.textContent = T.toFixed(0);
+                massValueSpan.textContent = M_gmol.toFixed(1);
+                
+                const m_kg = (M_gmol / 1000) / NA;
+                const sigma = Math.sqrt((kB * T) / m_kg);
+                
+                stdDevValueP.textContent = sigma.toFixed(2);
+
+                drawGraph();
+            }
+
+            // Añadir los escuchadores de eventos para que se actualice al mover los sliders
+            temperatureSlider.addEventListener('input', update);
+            massSlider.addEventListener('input', update);
+
+            // Llamar a la función de inicialización al cargar la página
+            update();
+        };
+    </script>
+</body>
+</html>
